@@ -1,0 +1,6 @@
+-r base.txt
+
+ipython
+flake8
+pylint
+pydeployhelp

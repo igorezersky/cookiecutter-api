@@ -1,0 +1,13 @@
+{
+    "project_name": "Base Project",
+    "project_slug": "{{ cookiecutter.project_name | slugify | replace('-', '_') }}",
+    "author_name": "John Doe",
+    "author_email": "john.doe@test.com",
+    "license": ["MIT", "BSD-3", "GNU GPL v3.0", "Apache Software License 2.0"],
+    "host": "localhost",
+    "environment": ["dev", "prod"],
+    "volumes_path": "$HOME/projects/{{ cookiecutter.project_slug }}",
+    "_copy_without_render": [
+        "*.j2"
+    ]
+}

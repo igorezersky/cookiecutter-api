@@ -1,0 +1,63 @@
+server:
+  host: localhost
+  port: 8080
+  enable_cors: false
+db:
+  dialect: postgresql
+  host: localhost
+  port: 5432
+  name: {{ cookiecutter.project_slug }}
+  connect_retry:
+    count: 2
+    delay: 10
+security:
+  algorithm: HS256
+  access_token_expires_hours: 24
+  token_name: {{ cookiecutter.project_slug }}Authorization
+  crypt_context:
+    schemes:
+      - bcrypt
+    deprecated: auto
+  oauth2:
+    tokenUrl: auth/token
+path:
+  logs: logs
+validation:
+  email:
+    messages:
+      invalid: Unsupported format
+      success: Ok
+  password:
+    messages:
+      invalid: Password must contain at least 8 characters, including uppercase, lowercase letters and numbers
+      success: Ok
+    regex: '(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}'
+logging:
+  version: 1
+  disable_existing_loggers: false
+  formatters:
+    simple:
+      format: "%(asctime)s - %(name)s:%(lineno)d - [%(levelname)s] - %(message)s"
+  handlers:
+    console:
+      class: logging.StreamHandler
+      level: DEBUG
+      formatter: simple
+    file:
+      class: logging.handlers.TimedRotatingFileHandler
+      when: midnight
+      backupCount: 90
+      level: INFO
+      formatter: simple
+      filename: main.log
+  loggers:
+    uvicorn:
+      level: INFO
+      propagate: yes
+      handlers:
+        - file
+  root:
+    level: INFO
+    handlers:
+      - console
+      - file

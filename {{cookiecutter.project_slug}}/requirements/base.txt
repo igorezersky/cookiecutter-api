@@ -1,0 +1,22 @@
+# server
+fastapi>=0.65,<0.68
+starlette>=0.14,<0.17
+
+# static files ant templates
+jinja2
+aiofiles
+
+# orm
+sqlmodel
+psycopg2-binary
+
+# security
+python-jose[cryptography]
+passlib[bcrypt]
+
+# data
+pydantic>=1.8,<1.10
+ruamel.yaml>=0.17,<0.19
+
+# validation
+email_validator

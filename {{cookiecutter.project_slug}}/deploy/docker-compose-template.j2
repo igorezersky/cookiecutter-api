@@ -1,0 +1,83 @@
+{% set PROJECT_ROOT = '/home/admin/' + PROJECT_NAME %}
+{% set VIRTUAL_ENV = PROJECT_ROOT + '/venv' %}
+version: "3"
+services:
+  {{ PROJECT_NAME }}-db-{{ ENV }}:
+    image: postgres
+    container_name: {{ PROJECT_NAME }}-db-{{ ENV }}
+    restart: always
+    ports:
+      - {{ DB_PORT }}:5432
+    networks:
+      - {{ PROJECT_NAME }}-{{ ENV }}
+    environment:
+      POSTGRES_USER: {{ DB_USERNAME }}
+      POSTGRES_PASSWORD: {{ DB_PASSWORD }}
+      POSTGRES_DB: {{ DB_NAME }}
+    volumes:
+      - {{ VOLUMES_ROOT }}/db:/var/lib/postgresql/data
+  {{ PROJECT_NAME }}-backend-{{ ENV }}:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        PROJECT_NAME: {{ PROJECT_NAME }}
+        PROJECT_USER: admin
+        VIRTUAL_ENV: {{ VIRTUAL_ENV }}
+    image: {{ PROJECT_NAME }}:{{ ENV }}
+    container_name: {{ PROJECT_NAME }}-backend-{{ ENV }}
+    restart: always
+    depends_on:
+      - {{ PROJECT_NAME }}-db-{{ ENV }}
+    expose:
+      - "{{ PORT }}"
+    networks:
+      - {{ PROJECT_NAME }}-{{ ENV }}
+    {% if ENV == 'prod' %}
+      - traefik-public
+    labels:
+      # Enable Traefik for this specific "backend" service
+      - traefik.enable=true
+      # Define the port inside of the Docker service to use
+      - traefik.http.services.{{ PROJECT_NAME }}-backend.loadbalancer.server.port={{ PORT }}
+      # Make Traefik use this domain in HTTP
+      - traefik.http.routers.{{ PROJECT_NAME }}-backend-http.entrypoints=http
+      - traefik.http.routers.{{ PROJECT_NAME }}-backend-http.rule=Host(`{{ HOST }}`)
+      # Use the traefik-public network (declared below)
+      - traefik.docker.network=traefik-public
+      # Make Traefik use this domain in HTTPS
+      - traefik.http.routers.{{ PROJECT_NAME }}-backend-https.entrypoints=https
+      - traefik.http.routers.{{ PROJECT_NAME }}-backend-https.rule=Host(`{{ HOST }}`)
+      - traefik.http.routers.{{ PROJECT_NAME }}-backend-https.tls=true
+      # Use the "le" (Let's Encrypt) resolver
+      - traefik.http.routers.{{ PROJECT_NAME }}-backend-https.tls.certresolver=le
+      # https-redirect middleware to redirect HTTP to HTTPS
+      - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
+      - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
+      # Middleware to redirect HTTP to HTTPS
+      - traefik.http.routers.{{ PROJECT_NAME }}-backend-http.middlewares=https-redirect
+    {% else %}
+    ports:
+      - {{ PORT }}:{{ PORT }}
+    {% endif %}
+    command: uvicorn run:server --port {{ PORT }} --host 0.0.0.0
+    environment:
+      HOST: {{ HOST }}
+      PORT: {{ PORT }}
+      ENABLE_CORS: "{{ ENABLE_CORS }}"
+      SECRET_KEY: {{ SECRET_KEY }}
+      DB_USERNAME: {{ DB_USERNAME }}
+      DB_PASSWORD: {{ DB_PASSWORD }}
+      DB_HOST: {{ PROJECT_NAME }}-db-{{ ENV }}
+      DB_PORT: 5432
+      DB_NAME: {{ DB_NAME }}
+    volumes:
+      - {{ VOLUMES_ROOT }}/logs:{{ PROJECT_ROOT }}/logs
+networks:
+  {{ PROJECT_NAME }}-{{ ENV }}:
+    external:
+      name: {{ PROJECT_NAME }}-{{ ENV }}
+  {% if ENV == 'prod' %}
+  traefik-public:
+    external: true
+  {% endif %}
