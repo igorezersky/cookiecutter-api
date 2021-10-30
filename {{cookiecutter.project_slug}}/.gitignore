@@ -118,3 +118,4 @@ db/
 logs/
 deploy/docker-compose-template-*.yml
 .vscode/
+.idea/

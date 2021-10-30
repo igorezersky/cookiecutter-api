@@ -60,7 +60,7 @@ Create `.env` file in project root with environment variables:
 
 ```text
 ENV=dev
-PROJECT_NAME={{ cookiecutter.project_slug }}
+PROJECT_SLUG={{ cookiecutter.project_slug }}
 SECRET_KEY=skey
 HOST=localhost
 PORT=8080
@@ -77,7 +77,7 @@ What does each variable mean:
 
 * `ENV`: environment type (dev, prod), could contain any value, but for production please set `ENV=prod`
 
-* `PROJECT_NAME`: this name will be used for docker containers creation
+* `PROJECT_SLUG`: this name will be used for docker containers creation
 
 * `SECRET_KEY`: this key will be used for passwords hashing (should be securely stored)
 
