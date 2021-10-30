@@ -59,7 +59,7 @@ oauth2 = Oauth2PasswordCookieBearer()
 class Security:
     def __init__(self, configs: SecurityConfigs, db: Database) -> None:
         self.configs = configs
-        self.user_model = db.models.User
+        self.db = db
         oauth2.setup(configs=self.configs)
         self.pwd_context = CryptContext(**self.configs.crypt_context)
 
@@ -111,8 +111,13 @@ class Security:
     def find_user(self, username: str, password: str = ''):
         """ Search for user in db with `username` and `password` (if presented) """
 
-        user = self.crud('user').read(username=username)
-        if not user or (password and not self.verify_password(password, user.hashed_password)):
+        with self.db.start_session() as session:
+            user = self.db.read(
+                self.db.models.User.username == username,
+                session=session,
+                model=self.db.models.User
+            )
+        if not user or (password and not self.verify_password(password, user.password)):
             user = None
         return user
 
