@@ -1,7 +1,8 @@
 import logging
 import time
+from typing import Type
 
-from sqlmodel import SQLModel, create_engine
+from sqlmodel import SQLModel, create_engine, Session, select
 
 from {{ cookiecutter.project_slug }}.configs import DatabaseConfigs
 from {{ cookiecutter.project_slug }}.orm import models
@@ -14,6 +15,7 @@ class Database:
         self.configs = configs
         self.models = models
         self.engine = None
+        self.start_session = lambda engine=None: Session(engine or self.engine)
 
     def connect(self, retry_count: int = None) -> 'Database':
         """ Connect to db. Will try to connect `retry_count` times if connection errors occur  """
@@ -23,7 +25,7 @@ class Database:
 
         try:
             self.engine = create_engine(self.configs.dsn, **self.configs.other)
-            self.create_all()
+            self.create_db()
         except Exception as e:
             if retry_count:
                 _logger.warning(
@@ -36,12 +38,71 @@ class Database:
                 raise e
         return self
 
-    def create_all(self) -> 'Database':
-        """ Create all db and all tables  """
+    def create_db(self) -> 'Database':
+        """ Create db tables  """
 
         SQLModel.metadata.create_all(self.engine)
         return self
 
-    def drop_all(self) -> 'Database':
+    def drop_db(self) -> 'Database':
+        """ Drop all db tables """
+
         SQLModel.metadata.drop_all(self.engine)
         return self
+
+    @staticmethod
+    def create(instance: SQLModel, session: Session, refresh: bool = False) -> SQLModel:
+        """ Write `instance` to db """
+
+        session.add(instance)
+        session.commit()
+        if refresh:
+            session.refresh(instance)
+        return instance
+
+    @staticmethod
+    def create_many(instances: list[SQLModel], session: Session, refresh: bool = False) -> list[SQLModel]:
+        """ Write `instances` to db """
+
+        session.add_all(instances)
+        session.commit()
+        if refresh:
+            for instance in instances:
+                session.refresh(instance)
+        return instances
+
+    @staticmethod
+    def read(query: tuple, session: Session, model: Type[SQLModel], offset: int = None, limit: int = None):
+        """ Find (filtering by `query`) records in db """
+
+        statement = select(model).where(query)
+        if offset:
+            statement = statement.offset(offset)
+        if limit:
+            statement = statement.limit(limit)
+        return session.exec(statement)
+
+    def update(self, instance: SQLModel, session: Session) -> SQLModel:
+        """ Update `instance` in db """
+
+        return self.create(instance, session, refresh=True)
+
+    def update_many(self, instances: list[SQLModel], session: Session) -> list[SQLModel]:
+        """ Update `instances` in db """
+
+        return self.create_many(instances, session, refresh=True)
+
+    @staticmethod
+    def delete(instance: SQLModel, session: Session):
+        """ Delete `instance` from db """
+
+        session.delete(instance)
+        session.commit()
+
+    @staticmethod
+    def delete_many(instances: list[SQLModel], session: Session):
+        """ Delete `instance` from db """
+
+        for instance in instances:
+            session.delete(instance)
+        session.commit()
