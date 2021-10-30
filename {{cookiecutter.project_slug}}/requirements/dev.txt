@@ -1,6 +1,11 @@
--r base.txt
+-r common.txt
 
-ipython
+# linting
 flake8
 pylint
+
+# debug
+ipython
+
+# deploy
 pydeployhelp
