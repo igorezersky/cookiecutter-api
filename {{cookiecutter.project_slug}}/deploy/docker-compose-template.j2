@@ -1,61 +1,71 @@
-{% set PROJECT_ROOT = '/home/admin/' + PROJECT_NAME %}
-{% set VIRTUAL_ENV = PROJECT_ROOT + '/venv' %}
+# set environment variables
+{% set PROJECT_USER = 'admin' %}
+{% set PROJECT_ROOT = '/home/' ~ PROJECT_USER ~ '/' ~ PROJECT_SLUG %}
+{% set VIRTUAL_ENV = PROJECT_ROOT ~ '/venv' %}
+{% set ENABLE_TRAEFIK = ENV == 'prod' %}
+{% set DB_SERVICE_NAME = PROJECT_SLUG ~ 'db' ~ ENV %}
+{% set BACKEND_SERVICE_NAME = PROJECT_SLUG ~ 'backend' ~ ENV %}
+
 version: "3"
 services:
-  {{ PROJECT_NAME }}-db-{{ ENV }}:
+
+  # database
+  {{ DB_SERVICE_NAME }}:
     image: postgres
-    container_name: {{ PROJECT_NAME }}-db-{{ ENV }}
+    container_name: {{ DB_SERVICE_NAME }}
     restart: always
     ports:
       - {{ DB_PORT }}:5432
     networks:
-      - {{ PROJECT_NAME }}-{{ ENV }}
+      - {{ PROJECT_SLUG }}-{{ ENV }}
     environment:
       POSTGRES_USER: {{ DB_USERNAME }}
       POSTGRES_PASSWORD: {{ DB_PASSWORD }}
       POSTGRES_DB: {{ DB_NAME }}
     volumes:
       - {{ VOLUMES_ROOT }}/db:/var/lib/postgresql/data
-  {{ PROJECT_NAME }}-backend-{{ ENV }}:
+
+  # backend
+  {{ BACKEND_SERVICE_NAME }}:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
       args:
-        PROJECT_NAME: {{ PROJECT_NAME }}
-        PROJECT_USER: admin
+        PROJECT_SLUG: {{ PROJECT_SLUG }}
+        PROJECT_USER: {{ PROJECT_USER }}
         VIRTUAL_ENV: {{ VIRTUAL_ENV }}
-    image: {{ PROJECT_NAME }}:{{ ENV }}
-    container_name: {{ PROJECT_NAME }}-backend-{{ ENV }}
+    image: {{ PROJECT_SLUG }}:{{ ENV }}
+    container_name: {{ BACKEND_SERVICE_NAME }}
     restart: always
     depends_on:
-      - {{ PROJECT_NAME }}-db-{{ ENV }}
+      - {{ DB_SERVICE_NAME }}
     expose:
       - "{{ PORT }}"
     networks:
-      - {{ PROJECT_NAME }}-{{ ENV }}
-    {% if ENV == 'prod' %}
+      - {{ PROJECT_SLUG }}-{{ ENV }}
+      {% if ENABLE_TRAEFIK %}
       - traefik-public
     labels:
       # Enable Traefik for this specific "backend" service
       - traefik.enable=true
       # Define the port inside of the Docker service to use
-      - traefik.http.services.{{ PROJECT_NAME }}-backend.loadbalancer.server.port={{ PORT }}
+      - traefik.http.services.{{ BACKEND_SERVICE_NAME }}.loadbalancer.server.port={{ PORT }}
       # Make Traefik use this domain in HTTP
-      - traefik.http.routers.{{ PROJECT_NAME }}-backend-http.entrypoints=http
-      - traefik.http.routers.{{ PROJECT_NAME }}-backend-http.rule=Host(`{{ HOST }}`)
+      - traefik.http.routers.{{ BACKEND_SERVICE_NAME }}-http.entrypoints=http
+      - traefik.http.routers.{{ BACKEND_SERVICE_NAME }}-http.rule=Host(`{{ HOST }}`)
       # Use the traefik-public network (declared below)
       - traefik.docker.network=traefik-public
       # Make Traefik use this domain in HTTPS
-      - traefik.http.routers.{{ PROJECT_NAME }}-backend-https.entrypoints=https
-      - traefik.http.routers.{{ PROJECT_NAME }}-backend-https.rule=Host(`{{ HOST }}`)
-      - traefik.http.routers.{{ PROJECT_NAME }}-backend-https.tls=true
+      - traefik.http.routers.{{ BACKEND_SERVICE_NAME }}-https.entrypoints=https
+      - traefik.http.routers.{{ BACKEND_SERVICE_NAME }}-https.rule=Host(`{{ HOST }}`)
+      - traefik.http.routers.{{ BACKEND_SERVICE_NAME }}-https.tls=true
       # Use the "le" (Let's Encrypt) resolver
-      - traefik.http.routers.{{ PROJECT_NAME }}-backend-https.tls.certresolver=le
+      - traefik.http.routers.{{ BACKEND_SERVICE_NAME }}-https.tls.certresolver=le
       # https-redirect middleware to redirect HTTP to HTTPS
       - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
       - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
       # Middleware to redirect HTTP to HTTPS
-      - traefik.http.routers.{{ PROJECT_NAME }}-backend-http.middlewares=https-redirect
+      - traefik.http.routers.{{ BACKEND_SERVICE_NAME }}-http.middlewares=https-redirect
     {% else %}
     ports:
       - {{ PORT }}:{{ PORT }}
@@ -68,16 +78,16 @@ services:
       SECRET_KEY: {{ SECRET_KEY }}
       DB_USERNAME: {{ DB_USERNAME }}
       DB_PASSWORD: {{ DB_PASSWORD }}
-      DB_HOST: {{ PROJECT_NAME }}-db-{{ ENV }}
+      DB_HOST: {{ DB_SERVICE_NAME }}
       DB_PORT: 5432
       DB_NAME: {{ DB_NAME }}
     volumes:
       - {{ VOLUMES_ROOT }}/logs:{{ PROJECT_ROOT }}/logs
+
 networks:
-  {{ PROJECT_NAME }}-{{ ENV }}:
-    external:
-      name: {{ PROJECT_NAME }}-{{ ENV }}
-  {% if ENV == 'prod' %}
+  {{ PROJECT_SLUG }}-{{ ENV }}:
+    name: {{ PROJECT_SLUG }}-{{ ENV }}
+  {% if ENABLE_TRAEFIK %}
   traefik-public:
     external: true
   {% endif %}
