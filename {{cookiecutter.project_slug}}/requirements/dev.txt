@@ -9,3 +9,7 @@ ipython
 
 # deploy
 pydeployhelp
+
+# documentation
+sphinx
+sphinx_rtd_theme
