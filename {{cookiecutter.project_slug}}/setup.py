@@ -6,7 +6,7 @@ with open('README.md', 'r', encoding='utf-8') as fp:
     long_description = fp.read()
 
 install_requires = []
-for file in ['base', 'prod']:
+for file in ['common', 'dev', 'prod']:
     with open(f'requirements/{file}.txt', encoding='utf-8') as fp:
         for line in fp:
             if line.startswith('git'):  # handle private repos

@@ -75,7 +75,9 @@ class Database:
     def read(query: tuple, session: Session, model: Type[SQLModel], offset: int = None, limit: int = None):
         """ Find (filtering by `query`) records in db """
 
-        statement = select(model).where(query)
+        statement = select(model)
+        if query:
+            statement = statement.where(query)
         if offset:
             statement = statement.offset(offset)
         if limit:
