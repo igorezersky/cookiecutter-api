@@ -1,1 +1,4 @@
 -r common.txt
+
+# deploy
+gunicorn>=20,<21

@@ -7,13 +7,15 @@ from starlette.routing import NoMatchFound
 
 from {{ cookiecutter.project_slug }}.app.core.security import Security
 from {{ cookiecutter.project_slug }}.configs import Configs
+from {{ cookiecutter.project_slug }}.orm import Database
 
 
 class App:
-    def __init__(self, configs: Configs, security: Security = None) -> None:
+    def __init__(self, configs: Configs, security: Security = None, db: Database = None) -> None:
         self.server = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)  # trick to handle documentation hosting
         self.configs = configs.server
         self.security = security
+        self.db = db
 
         if self.configs.enable_cors:
             self.enable_cors()
@@ -55,7 +57,7 @@ class App:
             forwarded_allow_ips='*'
         )
 
-    def url_for(self, endpoint: str, **kwargs) -> str:
+    def url_for(self, endpoint: str, path_params: dict = None, query_params: dict = None) -> str:
         """ Generate relative URL for `endpoint` """
 
         endpoint_parts = endpoint.split('.')
@@ -67,7 +69,10 @@ class App:
             if endpoint_name != route.name or any(tag not in getattr(route, 'tags', []) for tag in endpoint_tags):
                 continue
             try:
-                url = route.url_path_for(endpoint_name, **kwargs)
+                url = route.url_path_for(endpoint_name, **(path_params or {}))
+                if query_params:
+                    query = '&'.join(f'{k}={v}' for k, v in query_params.items())
+                    url = f'{url}?{query}'
                 return url
             except NoMatchFound:
                 pass
@@ -83,7 +88,7 @@ class App:
         """ Main application method: connect all exceptions handlers, endpoints and blueprints to app """
 
         from {{ cookiecutter.project_slug }}.app.routes import index
-        from {{ cookiecutter.project_slug }}.app.core import exceptions as _  # required for exceptions handlers connection
+        from {{ cookiecutter.project_slug }}.app.core import exceptions  # noqa
 
         self.server.include_router(index.router, prefix='', tags=['index'])
 

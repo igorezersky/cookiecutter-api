@@ -2,9 +2,10 @@
 {% set PROJECT_USER = 'admin' %}
 {% set PROJECT_ROOT = '/home/' ~ PROJECT_USER ~ '/' ~ PROJECT_SLUG %}
 {% set VIRTUAL_ENV = PROJECT_ROOT ~ '/venv' %}
+{% set REPLICAS_NUM = REPLICAS_NUM | default(1) %}
 {% set ENABLE_TRAEFIK = ENV == 'prod' %}
-{% set DB_SERVICE_NAME = PROJECT_SLUG ~ 'db' ~ ENV %}
-{% set BACKEND_SERVICE_NAME = PROJECT_SLUG ~ 'backend' ~ ENV %}
+{% set DB_SERVICE_NAME = PROJECT_SLUG ~ '-db-' ~ ENV %}
+{% set BACKEND_SERVICE_NAME = PROJECT_SLUG ~ '-backend-' ~ ENV %}
 
 version: "3"
 services:
@@ -70,7 +71,7 @@ services:
     ports:
       - {{ PORT }}:{{ PORT }}
     {% endif %}
-    command: uvicorn run:server --port {{ PORT }} --host 0.0.0.0
+    command:gunicorn run:server --workers {{ REPLICAS_NUM }} --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:{{ PORT }}
     environment:
       HOST: {{ HOST }}
       PORT: {{ PORT }}

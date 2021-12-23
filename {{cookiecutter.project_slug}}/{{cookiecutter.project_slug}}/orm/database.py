@@ -1,7 +1,8 @@
 import logging
 import time
-from typing import Type
+from typing import Optional, Type
 
+from sqlalchemy import func
 from sqlmodel import SQLModel, create_engine, Session, select
 
 from {{ cookiecutter.project_slug }}.configs import DatabaseConfigs
@@ -15,7 +16,7 @@ class Database:
         self.configs = configs
         self.models = models
         self.engine = None
-        self.start_session = lambda engine=None: Session(engine or self.engine)
+        self.start_session = lambda engine = None: Session(engine or self.engine)
 
     def connect(self, retry_count: int = None) -> 'Database':
         """ Connect to db. Will try to connect `retry_count` times if connection errors occur  """
@@ -54,6 +55,8 @@ class Database:
     def create(instance: SQLModel, session: Session, refresh: bool = False) -> SQLModel:
         """ Write `instance` to db """
 
+        if instance.id is None:
+            instance.id = session.query(func.count(instance.__class__.id)).scalar() + 1
         session.add(instance)
         session.commit()
         if refresh:
@@ -72,15 +75,24 @@ class Database:
         return instances
 
     @staticmethod
-    def read(query: tuple, session: Session, model: Type[SQLModel], offset: int = None, limit: int = None):
+    def read(
+        query: Optional[tuple],
+        session: Session,
+        model: Type[SQLModel],
+        order_by=None,
+        offset: int = None,
+        limit: int = None
+    ):
         """ Find (filtering by `query`) records in db """
 
         statement = select(model)
-        if query:
+        if query is not None:
             statement = statement.where(query)
-        if offset:
+        if order_by is not None:
+            statement = statement.order_by(order_by)
+        if offset is not None:
             statement = statement.offset(offset)
-        if limit:
+        if limit is not None:
             statement = statement.limit(limit)
         return session.exec(statement)
 
