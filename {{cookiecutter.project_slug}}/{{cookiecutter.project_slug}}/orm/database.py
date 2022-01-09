@@ -76,18 +76,21 @@ class Database:
 
     @staticmethod
     def read(
-        query: Optional[tuple],
         session: Session,
         model: Type[SQLModel],
-        order_by=None,
+        where: Optional[tuple] = None,
+        filter_by: Optional[dict] = None,
+        order_by: Optional[tuple] = None,
         offset: int = None,
         limit: int = None
     ):
         """ Find (filtering by `query`) records in db """
 
         statement = select(model)
-        if query is not None:
-            statement = statement.where(query)
+        if where is not None:
+            statement = statement.where(where)
+        if filter_by is not None:
+            statement = statement.filter_by(**filter_by)
         if order_by is not None:
             statement = statement.order_by(order_by)
         if offset is not None:

@@ -112,11 +112,7 @@ class Security:
         """ Search for user in db with `username` and `password` (if presented) """
 
         with self.db.start_session() as session:
-            user = self.db.read(
-                self.db.models.User.username == username,
-                session=session,
-                model=self.db.models.User
-            )
+            user = self.db.read(filter_by={'username': username}, session=session, model=self.db.models.User)
         if not user or (password and not self.verify_password(password, user.password)):
             user = None
         return user
